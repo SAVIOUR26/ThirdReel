@@ -1,0 +1,67 @@
+name: Build ThirdReel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Android (APK + AAB)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK (direct-download distribution)
+        run: flutter build apk --release
+
+      - name: Build release App Bundle (Play Store, phase 2)
+        run: flutter build appbundle --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: thirdreel-android
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+
+  build-windows:
+    name: Windows (EXE)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+          channel: stable
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release Windows app
+        run: flutter build windows --release
+
+      - name: Zip build output
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ThirdReel-Windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: thirdreel-windows
+          path: ThirdReel-Windows.zip
+
+  # Phase 2, once code-signing certs are in place:
+  # - sign the .apk / .aab with the Play Store upload key
+  # - sign ThirdReel-Windows.zip contents with an Authenticode cert
+  # - attach both to a GitHub Release on version tags
