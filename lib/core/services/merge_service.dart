@@ -35,6 +35,7 @@ class MergeService {
     required String audioPath,
     required String outputPath,
     Duration? audioDuration,
+    int qValue = 3,
     void Function(double fraction)? onProgress,
   }) {
     final completer = Completer<MergeResult>();
@@ -49,7 +50,7 @@ class MergeService {
       'scale=1280:720:force_original_aspect_ratio=decrease,'
           'pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p',
       '-c:v', 'mpeg4',
-      '-q:v', '3',
+      '-q:v', '$qValue',
       '-c:a', 'aac',
       '-b:a', '192k',
       '-shortest',

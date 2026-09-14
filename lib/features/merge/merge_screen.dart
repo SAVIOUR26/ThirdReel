@@ -9,8 +9,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/services/file_service.dart';
 import '../../core/services/merge_service.dart';
+import '../../core/services/settings_service.dart';
 import '../../widgets/branding_footer.dart';
 import '../layout/adaptive_layout.dart';
+import '../settings/settings_dialog.dart';
 import 'widgets/merge_button.dart';
 import 'widgets/preview_panel.dart';
 import 'widgets/upload_card.dart';
@@ -28,6 +30,7 @@ class MergeScreen extends StatefulWidget {
 class _MergeScreenState extends State<MergeScreen> {
   final _fileService = FileService();
   final _mergeService = MergeService();
+  final _settingsService = SettingsService();
   final _audioPlayer = AudioPlayer();
 
   PickedFile? _audioFile;
@@ -123,11 +126,13 @@ class _MergeScreenState extends State<MergeScreen> {
     });
 
     final tempPath = await _fileService.tempOutputPath();
+    final quality = await _settingsService.getVideoQuality();
     final result = await _mergeService.merge(
       imagePath: imagePath,
       audioPath: audioPath,
       outputPath: tempPath,
       audioDuration: _duration,
+      qValue: quality.qValue,
       onProgress: (fraction) {
         if (mounted) setState(() => _progress = fraction);
       },
@@ -171,7 +176,7 @@ class _MergeScreenState extends State<MergeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () {},
+            onPressed: () => showSettingsDialog(context),
           ),
         ],
       ),

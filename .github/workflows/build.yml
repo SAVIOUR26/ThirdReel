@@ -19,10 +19,15 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build release APK (direct-download distribution)
-        run: flutter build apk --release
+      # arm64-v8a covers the overwhelming majority of Android devices in
+      # active use, and keeping the direct-download build to one ABI avoids
+      # shipping a single APK with duplicate native (FFmpeg) libraries for
+      # every architecture. The App Bundle below still packages all ABIs —
+      # Play Store delivery slices it per device automatically.
+      - name: Build release APK (direct-download distribution, arm64 only)
+        run: flutter build apk --release --target-platform android-arm64
 
-      - name: Build release App Bundle (Play Store, phase 2)
+      - name: Build release App Bundle (Play Store, phase 2, all ABIs)
         run: flutter build appbundle --release
 
       - uses: actions/upload-artifact@v4
@@ -51,15 +56,32 @@ jobs:
       - name: Build release Windows app
         run: flutter build windows --release
 
-      - name: Zip build output
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath ThirdReel-Windows.zip
+      - name: Read app version from pubspec.yaml
+        id: version
+        shell: pwsh
+        run: |
+          $line = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$' | Select-Object -First 1
+          $version = ($line.Matches.Groups[1].Value -split '\+')[0].Trim()
+          echo "value=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Ensure Inno Setup is available
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            choco install innosetup --no-progress -y
+          }
+
+      - name: Build single-file installer
+        shell: pwsh
+        run: |
+          iscc "/DMyAppVersion=${{ steps.version.outputs.value }}" windows\installer\thirdreel.iss
 
       - uses: actions/upload-artifact@v4
         with:
           name: thirdreel-windows
-          path: ThirdReel-Windows.zip
+          path: build/windows/installer/ThirdReel-Setup.exe
 
   # Phase 2, once code-signing certs are in place:
   # - sign the .apk / .aab with the Play Store upload key
-  # - sign ThirdReel-Windows.zip contents with an Authenticode cert
+  # - sign ThirdReel-Setup.exe with an Authenticode cert
   # - attach both to a GitHub Release on version tags
